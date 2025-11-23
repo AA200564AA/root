@@ -1,28 +1,27 @@
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV DISPLAY=:0
 
-# Update and install XFCE desktop + XRDP
+# Update & install desktop + VNC + browser-based VNC (noVNC)
 RUN apt update && apt install -y \
-    xrdp \
-    xfce4 \
-    xfce4-goodies \
-    sudo \
-    dbus-x11 \
+    xfce4 xfce4-goodies \
+    x11vnc xvfb \
+    wget curl sudo git \
     && apt clean
 
-# Set root password
-RUN echo "root:xx200564" | chpasswd
+# Set password for VNC
+RUN mkdir /root/.vnc && x11vnc -storepasswd "xx200564" /root/.vnc/passwd
 
-# Make XRDP use XFCE
-RUN echo xfce4-session > /root/.xsession
-
-# Change XRDP port to 20002
-RUN sed -i 's/3389/20002/g' /etc/xrdp/xrdp.ini
-
-# Allow root login
-RUN sed -i 's/allowed_users=console/allowed_users=anybody/' /etc/X11/Xwrapper.config || true
+# Install noVNC
+RUN git clone https://github.com/novnc/noVNC.git /opt/novnc && \
+    git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify && \
+    ln -s /opt/novnc/vnc.html /opt/novnc/index.html
 
 EXPOSE 20002
 
-CMD service xrdp start && tail -f /dev/null
+# Start desktop + VNC + web interface
+CMD Xvfb :0 -screen 0 1280x720x16 & \
+    startxfce4 & \
+    x11vnc -forever -usepw -display :0 -rfbport 5900 & \
+    /opt/novnc/utils/novnc_proxy --vnc localhost:5900 --listen 20002
