@@ -1,27 +1,34 @@
-FROM ubuntu:24.04
+FROM kalilinux/kali-rolling
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV DISPLAY=:0
+# Update system
+RUN apt update && apt full-upgrade -y
 
-# Update & install desktop + VNC + browser-based VNC (noVNC)
-RUN apt update && apt install -y \
-    xfce4 xfce4-goodies \
-    x11vnc xvfb \
-    wget curl sudo git \
-    && apt clean
+# Install core tools (NetHunter style)
+RUN apt install -y \
+    nmap \
+    hydra \
+    sqlmap \
+    metasploit-framework \
+    beef-xss \
+    aircrack-ng \
+    wordlists \
+    wireshark \
+    python3 python3-pip \
+    git curl wget nano zip unzip \
+    kali-tools-top10 \
+    kali-tools-wireless \
+    kali-tools-web \
+    kali-tools-passwords \
+    openssh-server
 
-# Set password for VNC
-RUN mkdir /root/.vnc && x11vnc -storepasswd "xx200564" /root/.vnc/passwd
+# Setup root
+RUN echo "root:rootpass123" | chpasswd
 
-# Install noVNC
-RUN git clone https://github.com/novnc/noVNC.git /opt/novnc && \
-    git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify && \
-    ln -s /opt/novnc/vnc.html /opt/novnc/index.html
+# Prepare SSH folder
+RUN mkdir /var/run/sshd
 
-EXPOSE 20002
+# Expose SSH port
+EXPOSE 22
 
-# Start desktop + VNC + web interface
-CMD Xvfb :0 -screen 0 1280x720x16 & \
-    startxfce4 & \
-    x11vnc -forever -usepw -display :0 -rfbport 5900 & \
-    /opt/novnc/utils/novnc_proxy --vnc localhost:5900 --listen 20002
+# Start SSH + Bash
+CMD service ssh start && bash
